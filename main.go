@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -13,11 +14,10 @@ import (
 // context.Context:
 // 1. キャンセルやデッドラインの伝播
 // 2. リクエストまたはトランザクションスコープのメタデータを関数やゴルーチン間で伝播
-func run(ctx context.Context) error {
+func run(ctx context.Context, l net.Listener) error {
 	s := &http.Server{
-		Addr: ":8080",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintln(w, "Hello", r.URL.Path[1:])
+			fmt.Fprintf(w, "Hello %s", r.URL.Path[1:])
 		}),
 	}
 
@@ -25,7 +25,7 @@ func run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.Serve(l); err != nil && err != http.ErrServerClosed {
 			log.Printf("failed to close: %+v", err)
 			return err
 		}
@@ -41,9 +41,18 @@ func run(ctx context.Context) error {
 }
 
 func main() {
-	err := run(context.Background())
-
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: go run main.go <port>")
+		os.Exit(1)
+	}
+	p := os.Args[1]
+	l, err := net.Listen("tcp", ":"+p)
 	if err != nil {
+		fmt.Println("Error: ", err.Error())
+		os.Exit(1)
+	}
+
+	if err := run(context.Background(), l); err != nil {
 		fmt.Println("Error: ", err.Error())
 		os.Exit(1)
 	}

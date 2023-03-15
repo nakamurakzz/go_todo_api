@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"testing"
 
@@ -11,13 +12,18 @@ import (
 )
 
 func TestResult(t *testing.T) {
+	l, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %+v", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return run(ctx)
+		return run(ctx, l)
 	})
-	in := "massage"
-	rsp, err := http.Get("http://localhost:8080/" + in)
+	in := "message"
+	url := fmt.Sprintf("http://%s/%s", l.Addr().String(), in)
+	rsp, err := http.Get(url)
 	if err != nil {
 		t.Errorf("failed to get: %+v", err)
 	}
@@ -29,8 +35,6 @@ func TestResult(t *testing.T) {
 
 	// HTTPサーバの戻り値をチェック
 	want := fmt.Sprintf("Hello %s", in)
-	fmt.Println(want)
-	fmt.Println(string(got))
 
 	if string(got) != want {
 		t.Errorf("want %s, but %s", want, got)
