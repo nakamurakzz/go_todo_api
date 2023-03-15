@@ -21,4 +21,4 @@ ps: ## Show the running containers
 	docker compose ps
 
 test: ## Run the tests
-	go test -race -shuffle=on -cover ./..
+	go test -race -shuffle=on ./...
